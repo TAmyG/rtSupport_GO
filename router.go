@@ -33,6 +33,16 @@ func (r *Router) Handle(msgName string, handler Handler) {
 
 func (e *Router) ServerHTTP(w http.ResponseWriter, r *http.ReadRequest) {
 	socket, err := upgrader.Upgrade(w, r, nil)
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprint(w, err.Error())
+		return
+	}
+
+	client := NewClient(socket)
+	go client.Write()
+	client.Read()
 }
 
 func addChannel(data interface{}) error {
