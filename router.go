@@ -3,10 +3,8 @@ package main
 import (
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/mitchellh/mapstructure"
 )
 
 type Handler func(*Client, interface{})
@@ -31,7 +29,12 @@ func (r *Router) Handle(msgName string, handler Handler) {
 	r.rules[msgName] = handler
 }
 
-func (e *Router) ServerHTTP(w http.ResponseWriter, r *http.ReadRequest) {
+func (r *Router) FindHandler(msgName string) (Handler, bool) {
+	handler, found := r.rules[msgName]
+	return handler, found
+}
+
+func (e *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	socket, err := upgrader.Upgrade(w, r, nil)
 
 	if err != nil {
@@ -40,33 +43,7 @@ func (e *Router) ServerHTTP(w http.ResponseWriter, r *http.ReadRequest) {
 		return
 	}
 
-	client := NewClient(socket)
+	client := NewClient(socket, e.FindHandler)
 	go client.Write()
 	client.Read()
-}
-
-func addChannel(data interface{}) error {
-	var channel Channel
-	//channelmap := data.(map[string]interface{})
-	//channel.Name = channelmap["name"].(string)
-	err := mapstructure.Decode(data, &channel)
-
-	if err != nil {
-		fmt.Println(err)
-		return err
-	}
-	channel.Id = "1"
-
-	fmt.Println("added channel")
-	return nil
-}
-func subscribeChannel(socket *websocket.Conn) {
-	//TODO: rethinkDB Query
-	for {
-		time.Sleep(time.Second * 1)
-		message := Message{"channel add",
-			Channel{"1", "Software support"}}
-		socket.WriteJSON(message)
-		fmt.Println("sent new channel")
-	}
 }

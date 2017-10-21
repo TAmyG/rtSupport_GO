@@ -4,14 +4,17 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+type FindHandler func(string) (Handler, bool)
+
 type Message struct {
 	Name string      `json:"name"`
 	Data interface{} `json:"data"`
 }
 
 type Client struct {
-	send   chan Message
-	socket *websocket.Conn //Se recibe el socket configurado en el cliente
+	send        chan Message
+	socket      *websocket.Conn //Se recibe el socket configurado en el cliente
+	findHandler FindHandler
 }
 
 func (client *Client) Read() {
@@ -21,7 +24,11 @@ func (client *Client) Read() {
 			break
 		}
 		//qué funcion llamar?
+		if handler, found := client.findHandler(message.Name); found {
+			handler(client, message.Data)
+		}
 	}
+	client.socket.Close()
 }
 
 func (client *Client) Write() {
@@ -33,9 +40,10 @@ func (client *Client) Write() {
 	client.socket.Close()
 }
 
-func NewClient(socket *websocket.Conn) *Client {
+func NewClient(socket *websocket.Conn, findHandler FindHandler) *Client {
 	return &Client{
-		send:   make(chan Message),
-		socket: socket,
+		send:        make(chan Message),
+		socket:      socket,
+		findHandler: findHandler,
 	}
 }
